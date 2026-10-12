@@ -37,14 +37,10 @@ binaries:
         dest_name: kubectl
 
 # Signed add-ons from addons.mozilla.org. A profile names the key under
-# firefox_extensions. The xpi is copied into each Firefox profile. An add-on
-# already present in that profile is left alone.
+# firefox_extensions. Only Mozilla Recommended or By Firefox add-ons belong
+# here. The xpi is copied into each Firefox profile. An add-on already
+# present in that profile is left alone.
 firefox_extensions:
-  imagus-reborn:
-    id: "{7653b5cb-d76d-442f-a98f-f3c83a118cf4}"
-    version: "2026.9.27"
-    url: "https://addons.mozilla.org/firefox/downloads/file/5063818/imagus_reborn-2026.9.27.xpi"
-    sha256: "a04e515b170a877ef5536715789296ff80fab0382270f82d9ddada9b9db2bb68"
   multi-account-containers:
     id: "@testpilot-containers"
     version: "8.3.8"

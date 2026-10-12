@@ -45,10 +45,9 @@ cursor_state:
   - key: cursor/collapseAutoRunCommands
     value: "false"
 user_services: []
-# Imagus stopped in 2020; imagus-reborn is the maintained hover-zoom extension.
-# YouTube High Definition is omitted: its last release is from 2024 and it no longer sets playback quality.
+# Only Mozilla Recommended or By Firefox add-ons. YouTube High Definition and
+# Imagus Reborn fail that rule and are omitted.
 firefox_extensions:
-  - imagus-reborn
   - multi-account-containers
   - ublock-origin
   - user-agent-switcher
