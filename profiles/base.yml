@@ -22,6 +22,10 @@ repos:
     dest: .oh-my-zsh
     version: 083c339e0622bfc144b66ebf1a2e8dbe7d2ada0d
     fetch: false
+  - url: https://github.com/hhellbusch/my-ai-workspace.git
+    dest: git/public/github.com/hhellbusch/my-ai-workspace
+    version: main
+    submodules: true
 gsettings:
   # Libadwaita and GNOME Shell follow this. GTK theme packages are not required.
   - schema: org.gnome.desktop.interface
@@ -48,6 +52,9 @@ cursor_state:
     value: "true"
   - key: cursor/collapseAutoRunCommands
     value: "false"
+# Opening this checkout loads its .cursor/rules.
+cursor_folders:
+  - git/public/github.com/hhellbusch/my-ai-workspace
 user_services: []
 # Only Mozilla Recommended or By Firefox add-ons. YouTube High Definition and
 # Imagus Reborn fail that rule and are omitted.

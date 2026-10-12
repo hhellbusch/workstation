@@ -78,10 +78,38 @@ def apply_entries(database, entries, check):
     return changed
 
 
+def ensure_folders(storage, folders, check):
+    existing = [folder for folder in folders if folder.is_dir()]
+    missing = [str(folder) for folder in folders if not folder.is_dir()]
+    notices = [f"Cursor folder {path} is not present yet." for path in missing]
+    if not existing:
+        return False, notices
+
+    if storage.is_file():
+        data = json.loads(storage.read_text())
+    else:
+        data = {}
+    backup = data.setdefault("backupWorkspaces", {})
+    recorded = backup.setdefault("folders", [])
+    changed = False
+    for folder in existing:
+        uri = folder.resolve().as_uri()
+        if any(isinstance(item, dict) and item.get("folderUri") == uri for item in recorded):
+            continue
+        changed = True
+        if not check:
+            recorded.append({"folderUri": uri})
+    if changed and not check:
+        storage.parent.mkdir(parents=True, exist_ok=True)
+        storage.write_text(json.dumps(data, indent=4) + "\n")
+    return changed, notices
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--home", required=True, type=Path)
     parser.add_argument("--entries", required=True)
+    parser.add_argument("--folders", default="[]")
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
 
@@ -104,6 +132,20 @@ def main():
         notices.append(
             "Quit Cursor and run the bootstrap again to apply Cursor chat settings."
         )
+
+    folders = []
+    for item in json.loads(args.folders):
+        folder = Path(item)
+        if not folder.is_absolute():
+            folder = args.home / folder
+        folders.append(folder)
+    folder_changed, folder_notices = ensure_folders(
+        args.home / ".config/Cursor/User/globalStorage/storage.json",
+        folders,
+        args.check,
+    )
+    changed = changed or folder_changed
+    notices.extend(folder_notices)
 
     json.dump({"changed": changed, "notices": notices}, sys.stdout)
     sys.stdout.write("\n")

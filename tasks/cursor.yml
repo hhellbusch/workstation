@@ -1,6 +1,6 @@
 ---
 - name: Apply Cursor state-database preferences
-  when: ws_cursor_state | length > 0
+  when: (ws_cursor_state | length > 0) or (ws_cursor_folders | length > 0)
   ansible.builtin.command:
     argv: "{{ cursor_argv }}"
   register: cursor_apply
@@ -15,6 +15,8 @@
           home_dir,
           '--entries',
           ws_cursor_state | to_json,
+          '--folders',
+          ws_cursor_folders | to_json,
         ]
         + (['--check'] if ansible_check_mode | bool else [])
       }}
@@ -27,5 +29,5 @@
         + ((cursor_apply.stdout | default('{"notices":[]}')) | from_json).notices
       }}
   when:
-    - ws_cursor_state | length > 0
+    - (ws_cursor_state | length > 0) or (ws_cursor_folders | length > 0)
     - ((cursor_apply.stdout | default('{"notices":[]}')) | from_json).notices | length > 0

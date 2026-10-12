@@ -51,6 +51,7 @@
     ws_user_services: "{{ profile_data | map(attribute='user_services') | flatten | unique | sort }}"
     ws_firefox_extensions: "{{ profile_data | map(attribute='firefox_extensions') | flatten | unique | sort }}"
     ws_cursor_state: "{{ profile_data | map(attribute='cursor_state') | flatten(levels=1) }}"
+    ws_cursor_folders: "{{ profile_data | map(attribute='cursor_folders') | flatten | unique | sort }}"
     ws_notices: []
 
 - name: Load the binary lockfile
@@ -76,5 +77,6 @@
       user_services: "{{ ws_user_services }}"
       firefox_extensions: "{{ ws_firefox_extensions }}"
       cursor_state: "{{ ws_cursor_state }}"
+      cursor_folders: "{{ ws_cursor_folders }}"
       private_overlay: "{{ private_overlay }}"
       private_overlay_present: "{{ private_overlay_stat.stat.exists }}"
