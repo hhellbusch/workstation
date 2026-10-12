@@ -39,3 +39,4 @@ dotfiles:
   - .config/systemd/user/workstation-power-profile.service
 user_services:
   - workstation-power-profile.service
+firefox_extensions: []

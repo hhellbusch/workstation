@@ -155,6 +155,36 @@ def clear_stock_bookmarks(database, urls, folders):
         connection.close()
 
 
+def installed_extension_ids(profile):
+    path = profile / "extensions.json"
+    if not path.is_file():
+        return set()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return set()
+    return {addon.get("id") for addon in data.get("addons", []) if addon.get("id")}
+
+
+def install_extensions(profile, extensions):
+    present = installed_extension_ids(profile)
+    destination_dir = profile / "extensions"
+    changed = False
+    for extension in extensions:
+        if extension["id"] in present:
+            continue
+        source = Path(extension["path"])
+        destination = destination_dir / f"{extension['id']}.xpi"
+        payload = source.read_bytes()
+        if destination.is_file() and destination.read_bytes() == payload:
+            continue
+        destination_dir.mkdir(mode=0o755, exist_ok=True)
+        destination.write_bytes(payload)
+        destination.chmod(0o644)
+        changed = True
+    return changed
+
+
 def write_user_js(profile, source):
     destination = profile / "user.js"
     contents = source.read_text(encoding="utf-8")
@@ -170,6 +200,7 @@ def main():
     parser.add_argument("--user-js", required=True, type=Path)
     parser.add_argument("--home", required=True, type=Path)
     parser.add_argument("--stock-html", type=Path)
+    parser.add_argument("--extensions-manifest", type=Path)
     args = parser.parse_args()
 
     notices = []
@@ -186,17 +217,25 @@ def main():
         if write_user_js(profile, args.user_js):
             changed = True
 
+    extensions = []
+    if args.extensions_manifest and args.extensions_manifest.is_file():
+        extensions = json.loads(args.extensions_manifest.read_text(encoding="utf-8")).get("extensions", [])
+    extensions_changed = False
+    for profile in profiles:
+        if extensions and install_extensions(profile, extensions):
+            extensions_changed = True
+            changed = True
+
     stock_urls, stock_folders = set(), set()
     if args.stock_html and args.stock_html.is_file():
         stock_urls, stock_folders = load_stock(args.stock_html)
 
     running = firefox_is_running()
-    if running:
-        message = "Quit Firefox and run the bootstrap again to load the blank new tab, privacy settings, and disabled password manager"
-        if stock_urls or stock_folders:
-            message += ", and to remove the stock bookmarks"
-        notices.append(message + ".")
-    elif stock_urls or stock_folders:
+    if running and (changed or extensions_changed):
+        notices.append("Restart Firefox to load the new settings and extensions.")
+    if running and (stock_urls or stock_folders):
+        notices.append("Quit Firefox and run the bootstrap again to remove the stock bookmarks.")
+    elif not running and (stock_urls or stock_folders):
         for profile in profiles:
             database = profile / "places.sqlite"
             if not database.is_file():

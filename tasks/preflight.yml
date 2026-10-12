@@ -49,6 +49,7 @@
     ws_repos: "{{ profile_data | map(attribute='repos') | flatten(levels=1) }}"
     ws_gsettings: "{{ profile_data | map(attribute='gsettings') | flatten(levels=1) }}"
     ws_user_services: "{{ profile_data | map(attribute='user_services') | flatten | unique | sort }}"
+    ws_firefox_extensions: "{{ profile_data | map(attribute='firefox_extensions') | flatten | unique | sort }}"
     ws_notices: []
 
 - name: Load the binary lockfile
@@ -72,5 +73,6 @@
       repos: "{{ ws_repos | map(attribute='url') | list }}"
       gsettings: "{{ ws_gsettings }}"
       user_services: "{{ ws_user_services }}"
+      firefox_extensions: "{{ ws_firefox_extensions }}"
       private_overlay: "{{ private_overlay }}"
       private_overlay_present: "{{ private_overlay_stat.stat.exists }}"

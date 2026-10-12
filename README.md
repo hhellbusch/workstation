@@ -101,7 +101,7 @@ repos:
     submodules: true
 ```
 
-Package and group tasks use `sudo`. Binary, dotfile, Flatpak, GNOME settings, user services, and git tasks run as you. Firefox settings are written to each profile as `user.js`: a blank new tab, strict tracking protection, and Firefox's password manager turned off. When Firefox is not running, bookmarks that match a system skeleton `bookmarks.html` are removed. A user service is a systemd unit under `files/home/.config/systemd/user/`, named from the profile:
+Package and group tasks use `sudo`. Binary, dotfile, Flatpak, GNOME settings, user services, and git tasks run as you. Firefox settings are written to each profile as `user.js`: a blank page for new tabs and new windows, strict tracking protection, and Firefox's password manager turned off. Pinned Firefox extensions are copied into the profile from `lockfile.yml`. An extension that is already installed is left in place. When Firefox is not running, bookmarks that match a system skeleton `bookmarks.html` are removed. A user service is a systemd unit under `files/home/.config/systemd/user/`, named from the profile:
 
 ```yaml
 user_services:

@@ -26,3 +26,10 @@ gsettings:
     key: paste-clipboard
     value: "'<ctrl>v'"
 user_services: []
+# Imagus stopped in 2020; imagus-reborn is the maintained hover-zoom extension.
+# YouTube High Definition is omitted: its last release is from 2024 and it no longer sets playback quality.
+firefox_extensions:
+  - imagus-reborn
+  - multi-account-containers
+  - ublock-origin
+  - user-agent-switcher

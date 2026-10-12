@@ -50,6 +50,54 @@
         path: "{{ download_cache }}/firefox-skeleton-bookmarks.html"
       register: firefox_stock_file
 
+    - name: Require pinned Firefox extensions
+      ansible.builtin.assert:
+        that:
+          - item in (lockfile.firefox_extensions | default({}))
+          - lockfile.firefox_extensions[item].id is defined
+          - lockfile.firefox_extensions[item].version is defined
+          - lockfile.firefox_extensions[item].url is defined
+          - lockfile.firefox_extensions[item].sha256 is defined
+        fail_msg: "Firefox extension '{{ item }}' needs id, version, url, and sha256 in lockfile.yml."
+      loop: "{{ ws_firefox_extensions }}"
+      when: ws_firefox_extensions | length > 0
+
+    - name: Create the Firefox extension cache
+      ansible.builtin.file:
+        path: "{{ download_cache }}/firefox-extensions"
+        state: directory
+        mode: "0755"
+      when: ws_firefox_extensions | length > 0
+
+    - name: Download pinned Firefox extensions
+      ansible.builtin.get_url:
+        url: "{{ lockfile.firefox_extensions[item].url }}"
+        dest: "{{ download_cache }}/firefox-extensions/{{ item }}.xpi"
+        checksum: "sha256:{{ lockfile.firefox_extensions[item].sha256 }}"
+        mode: "0644"
+      loop: "{{ ws_firefox_extensions }}"
+      when: ws_firefox_extensions | length > 0
+
+    - name: Record the Firefox extension manifest
+      ansible.builtin.set_fact:
+        firefox_extension_manifest: >-
+          {{
+            firefox_extension_manifest | default([])
+            + [{
+                'id': lockfile.firefox_extensions[item].id,
+                'path': download_cache + '/firefox-extensions/' + item + '.xpi',
+              }]
+          }}
+      loop: "{{ ws_firefox_extensions }}"
+      when: ws_firefox_extensions | length > 0
+
+    - name: Write the Firefox extension manifest
+      ansible.builtin.copy:
+        dest: "{{ download_cache }}/firefox-extensions/manifest.json"
+        content: "{{ {'extensions': firefox_extension_manifest} | to_json }}"
+        mode: "0600"
+      when: ws_firefox_extensions | length > 0
+
     - name: Write Firefox settings and clear stock bookmarks
       ansible.builtin.command:
         argv: "{{ firefox_argv }}"
@@ -69,6 +117,11 @@
             + (
               ['--stock-html', download_cache + '/firefox-skeleton-bookmarks.html']
               if firefox_stock_file.stat.exists
+              else []
+            )
+            + (
+              ['--extensions-manifest', download_cache + '/firefox-extensions/manifest.json']
+              if (ws_firefox_extensions | length > 0)
               else []
             )
           }}

@@ -19,6 +19,10 @@ user_pref("browser.urlbar.suggest.quicksuggest.sponsored", false);
 user_pref("browser.urlbar.suggest.searches", false);
 user_pref("browser.search.suggest.enabled", false);
 
+// A new window opens the homepage. Blank, instead of the system default page.
+user_pref("browser.startup.homepage", "about:blank");
+user_pref("browser.startup.page", 0);
+
 // Strict tracking protection, HTTPS-only, and no location lookups.
 user_pref("browser.contentblocking.category", "strict");
 user_pref("privacy.trackingprotection.enabled", true);
@@ -50,3 +54,6 @@ user_pref("signon.generation.enabled", false);
 user_pref("signon.firefoxRelay.feature", "disabled");
 user_pref("signon.management.page.breach-alerts.enabled", false);
 user_pref("services.sync.engine.passwords", false);
+
+// The bootstrap copies signed add-ons into this profile. Without this they stay disabled.
+user_pref("extensions.autoDisableScopes", 0);

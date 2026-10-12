@@ -35,3 +35,28 @@ binaries:
         dest_name: oc
       - source_path: kubectl
         dest_name: kubectl
+
+# Signed add-ons from addons.mozilla.org. A profile names the key under
+# firefox_extensions. The xpi is copied into each Firefox profile. An add-on
+# already present in that profile is left alone.
+firefox_extensions:
+  imagus-reborn:
+    id: "{7653b5cb-d76d-442f-a98f-f3c83a118cf4}"
+    version: "2026.9.27"
+    url: "https://addons.mozilla.org/firefox/downloads/file/5063818/imagus_reborn-2026.9.27.xpi"
+    sha256: "a04e515b170a877ef5536715789296ff80fab0382270f82d9ddada9b9db2bb68"
+  multi-account-containers:
+    id: "@testpilot-containers"
+    version: "8.3.8"
+    url: "https://addons.mozilla.org/firefox/downloads/file/4867303/multi_account_containers-8.3.8.xpi"
+    sha256: "306a294845363f15a7478e9620b43f91ea1761088727808e2327bfff16c14447"
+  ublock-origin:
+    id: "uBlock0@raymondhill.net"
+    version: "1.75.0"
+    url: "https://addons.mozilla.org/firefox/downloads/file/5034826/ublock_origin-1.75.0.xpi"
+    sha256: "5b74415860456370644bd80f16125e865b0e6c356bb5dfcfb84069967eaa5287"
+  user-agent-switcher:
+    id: "{a6c4a591-f1b2-4f03-b3ff-767e5bedf4e7}"
+    version: "0.7.2"
+    url: "https://addons.mozilla.org/firefox/downloads/file/5081116/user_agent_string_switcher-0.7.2.xpi"
+    sha256: "9ad0e03d737db36366e16f1c6102c5ac5867e34e7a5f95f0bcdf00e2cda0b682"
