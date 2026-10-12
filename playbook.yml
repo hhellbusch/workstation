@@ -1,0 +1,50 @@
+---
+- name: Apply workstation profiles
+  hosts: localhost
+  connection: local
+  gather_facts: true
+
+  vars:
+    workstation_root: "{{ playbook_dir }}"
+    home_dir: "{{ lookup('env', 'HOME') }}"
+    local_bin: "{{ home_dir }}/.local/bin"
+    download_cache: "{{ home_dir }}/.cache/workstation"
+    private_overlay: "{{ lookup('env', 'WORKSTATION_PRIVATE') | default(home_dir + '/git/private/github.com/hhellbusch/workstation/overlay.yml', true) }}"
+    profiles: "{{ lookup('env', 'PROFILES') | default('base', true) }}"
+
+  tasks:
+    - name: Prepare profile data
+      ansible.builtin.import_tasks: tasks/preflight.yml
+
+    - name: Install dotfiles
+      ansible.builtin.import_tasks: tasks/dotfiles.yml
+
+    - name: Install packages
+      ansible.builtin.import_tasks: tasks/packages.yml
+
+    - name: Check for Fedora package updates
+      ansible.builtin.import_tasks: tasks/updates.yml
+
+    - name: Apply GNOME settings
+      ansible.builtin.import_tasks: tasks/gsettings.yml
+
+    - name: Enable user services
+      ansible.builtin.import_tasks: tasks/user_services.yml
+
+    - name: Install pinned binaries
+      ansible.builtin.import_tasks: tasks/binaries.yml
+
+    - name: Clone public repositories
+      ansible.builtin.import_tasks: tasks/repos.yml
+
+    - name: Apply Firefox settings
+      ansible.builtin.import_tasks: tasks/firefox.yml
+
+    - name: Apply a private overlay when one exists
+      ansible.builtin.import_tasks: tasks/overlay.yml
+
+    - name: Report actions still needed
+      ansible.builtin.debug:
+        msg: "{{ item }}"
+      loop: "{{ ws_notices }}"
+      when: ws_notices | length > 0

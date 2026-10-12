@@ -1,0 +1,17 @@
+---
+- name: Create directories for pinned binaries
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ local_bin }}"
+    - "{{ download_cache }}"
+  when: ws_binaries | length > 0
+
+- name: Install each pinned binary
+  ansible.builtin.include_tasks: install_binary.yml
+  loop: "{{ ws_binaries }}"
+  loop_control:
+    loop_var: binary_name
+  when: ws_binaries | length > 0

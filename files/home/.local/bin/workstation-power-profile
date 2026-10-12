@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Keep the tuned-ppd profile aligned with the power source.
+# AC or dock power uses "performance" (throughput-performance).
+# Battery uses "balanced", which tuned-ppd maps to balanced-battery.
+set -euo pipefail
+
+apply() {
+  local on_battery target current
+  on_battery="$(busctl get-property org.freedesktop.UPower /org/freedesktop/UPower org.freedesktop.UPower OnBattery)"
+  if [[ "${on_battery}" == "b true" ]]; then
+    target="balanced"
+  else
+    target="performance"
+  fi
+  current="$(busctl get-property net.hadess.PowerProfiles /net/hadess/PowerProfiles net.hadess.PowerProfiles ActiveProfile)"
+  if [[ "${current}" == "s \"${target}\"" ]]; then
+    return 0
+  fi
+  gdbus call --system \
+    --dest net.hadess.PowerProfiles \
+    --object-path /net/hadess/PowerProfiles \
+    --method org.freedesktop.DBus.Properties.Set \
+    net.hadess.PowerProfiles ActiveProfile "<'${target}'>" \
+    >/dev/null
+}
+
+apply
+while IFS= read -r _; do
+  apply
+done < <(upower --monitor)
+exit 1

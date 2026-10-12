@@ -1,0 +1,76 @@
+---
+- name: Normalize the profile list
+  ansible.builtin.set_fact:
+    profile_names: >-
+      {{
+        (
+          profiles
+          if (profiles is not string and profiles is not mapping and profiles is sequence)
+          else (profiles | string).split(',')
+        )
+        | map('trim')
+        | reject('equalto', '')
+        | list
+      }}
+
+- name: Require at least one profile
+  ansible.builtin.assert:
+    that:
+      - profile_names | length > 0
+    fail_msg: "Set PROFILES to a comma-separated list, for example base,work,laptop."
+
+- name: Check that each profile file exists
+  ansible.builtin.stat:
+    path: "{{ workstation_root }}/profiles/{{ item }}.yml"
+  loop: "{{ profile_names }}"
+  register: profile_stats
+
+- name: Reject unknown profiles
+  ansible.builtin.assert:
+    that:
+      - profile_stats.results | selectattr("stat.exists") | list | length == (profile_names | length)
+    fail_msg: >-
+      Unknown profile:
+      {{ profile_stats.results | rejectattr("stat.exists") | map(attribute="item") | list | join(", ") }}.
+      Expected a file in profiles/.
+
+- name: Load profile documents
+  ansible.builtin.set_fact:
+    profile_data: "{{ profile_data | default([]) + [lookup('ansible.builtin.file', workstation_root + '/profiles/' + item + '.yml') | from_yaml] }}"
+  loop: "{{ profile_names }}"
+
+- name: Merge profile settings
+  ansible.builtin.set_fact:
+    ws_packages: "{{ profile_data | map(attribute='packages') | flatten | unique | sort }}"
+    ws_groups: "{{ profile_data | map(attribute='groups') | flatten | unique | sort }}"
+    ws_flatpaks: "{{ profile_data | map(attribute='flatpaks') | flatten | unique | sort }}"
+    ws_binaries: "{{ profile_data | map(attribute='binaries') | flatten | unique | sort }}"
+    ws_dotfiles: "{{ profile_data | map(attribute='dotfiles') | flatten | unique | sort }}"
+    ws_repos: "{{ profile_data | map(attribute='repos') | flatten(levels=1) }}"
+    ws_gsettings: "{{ profile_data | map(attribute='gsettings') | flatten(levels=1) }}"
+    ws_user_services: "{{ profile_data | map(attribute='user_services') | flatten | unique | sort }}"
+    ws_notices: []
+
+- name: Load the binary lockfile
+  ansible.builtin.set_fact:
+    lockfile: "{{ lookup('ansible.builtin.file', workstation_root + '/lockfile.yml') | from_yaml }}"
+
+- name: Check for a private overlay
+  ansible.builtin.stat:
+    path: "{{ private_overlay }}"
+  register: private_overlay_stat
+
+- name: Report the selected profiles
+  ansible.builtin.debug:
+    msg:
+      profiles: "{{ profile_names }}"
+      packages: "{{ ws_packages }}"
+      groups: "{{ ws_groups }}"
+      flatpaks: "{{ ws_flatpaks }}"
+      binaries: "{{ ws_binaries }}"
+      dotfiles: "{{ ws_dotfiles }}"
+      repos: "{{ ws_repos | map(attribute='url') | list }}"
+      gsettings: "{{ ws_gsettings }}"
+      user_services: "{{ ws_user_services }}"
+      private_overlay: "{{ private_overlay }}"
+      private_overlay_present: "{{ private_overlay_stat.stat.exists }}"

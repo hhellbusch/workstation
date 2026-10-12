@@ -1,0 +1,73 @@
+---
+- name: Require a complete lockfile entry
+  ansible.builtin.assert:
+    that:
+      - binary_name in (lockfile.binaries | default({}))
+      - lockfile.binaries[binary_name].version is defined
+      - lockfile.binaries[binary_name].url is defined
+      - lockfile.binaries[binary_name].sha256 is defined
+      - (lockfile.binaries[binary_name].kind | default("file")) in ["file", "archive"]
+      - >-
+        (lockfile.binaries[binary_name].kind | default("file")) != "archive"
+        or lockfile.binaries[binary_name].source_path is defined
+        or lockfile.binaries[binary_name].files is defined
+    fail_msg: >-
+      Binary '{{ binary_name }}' needs version, url, and sha256 in lockfile.yml.
+      Archive entries also need source_path or files.
+
+- name: Record lockfile fields
+  ansible.builtin.set_fact:
+    binary_spec: "{{ lockfile.binaries[binary_name] }}"
+    binary_kind: "{{ lockfile.binaries[binary_name].kind | default('file') }}"
+    binary_dest_name: "{{ lockfile.binaries[binary_name].dest_name | default(binary_name) }}"
+    binary_download: "{{ download_cache }}/{{ binary_name }}-{{ lockfile.binaries[binary_name].version }}-{{ lockfile.binaries[binary_name].url | basename }}"
+
+- name: List archive members to install
+  ansible.builtin.set_fact:
+    binary_files: >-
+      {{
+        [] if binary_kind != 'archive'
+        else (
+          binary_spec.files
+          | default([{'source_path': binary_spec.source_path, 'dest_name': binary_dest_name}])
+        )
+      }}
+
+- name: Download the pinned file
+  ansible.builtin.get_url:
+    url: "{{ binary_spec.url }}"
+    dest: "{{ binary_download }}"
+    checksum: "sha256:{{ binary_spec.sha256 }}"
+    mode: "0644"
+
+- name: Create the archive extraction directory
+  ansible.builtin.file:
+    path: "{{ download_cache }}/{{ binary_name }}-{{ binary_spec.version }}"
+    state: directory
+    mode: "0755"
+  when: binary_kind == "archive"
+
+- name: Extract a pinned archive
+  ansible.builtin.unarchive:
+    src: "{{ binary_download }}"
+    dest: "{{ download_cache }}/{{ binary_name }}-{{ binary_spec.version }}"
+    remote_src: true
+    creates: "{{ download_cache }}/{{ binary_name }}-{{ binary_spec.version }}/{{ binary_files[0].source_path }}"
+  when: binary_kind == "archive"
+
+- name: Install a single-file binary
+  ansible.builtin.copy:
+    src: "{{ binary_download }}"
+    dest: "{{ local_bin }}/{{ binary_dest_name }}"
+    mode: "0755"
+    remote_src: true
+  when: binary_kind == "file"
+
+- name: Install binaries extracted from an archive
+  ansible.builtin.copy:
+    src: "{{ download_cache }}/{{ binary_name }}-{{ binary_spec.version }}/{{ item.source_path }}"
+    dest: "{{ local_bin }}/{{ item.dest_name }}"
+    mode: "0755"
+    remote_src: true
+  loop: "{{ binary_files }}"
+  when: binary_kind == "archive"

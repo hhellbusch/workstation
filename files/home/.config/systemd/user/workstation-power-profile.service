@@ -1,0 +1,12 @@
+[Unit]
+Description=Switch the power profile between AC and battery
+After=default.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/workstation-power-profile
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

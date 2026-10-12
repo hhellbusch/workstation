@@ -1,0 +1,4 @@
+---
+- name: Apply the private overlay
+  ansible.builtin.include_tasks: "{{ private_overlay }}"
+  when: private_overlay_stat.stat.exists

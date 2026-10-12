@@ -1,0 +1,18 @@
+---
+- name: Ensure dotfile parent directories exist
+  ansible.builtin.file:
+    path: "{{ home_dir }}/{{ item | dirname }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ ws_dotfiles }}"
+  when:
+    - ws_dotfiles | length > 0
+    - (item | dirname) not in [".", ""]
+
+- name: Install dotfiles into the home directory
+  ansible.builtin.copy:
+    src: "{{ workstation_root }}/files/home/{{ item }}"
+    dest: "{{ home_dir }}/{{ item }}"
+    mode: "{{ '0755' if item is match('^\\.local/bin/') else '0644' }}"
+  loop: "{{ ws_dotfiles }}"
+  when: ws_dotfiles | length > 0

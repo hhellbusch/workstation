@@ -1,0 +1,60 @@
+---
+- name: Check for Fedora package updates
+  ansible.builtin.command:
+    argv:
+      - dnf5
+      - --assumeyes
+      - check-upgrade
+      - --json
+  become: true
+  register: dnf5_updates
+  changed_when: false
+  failed_when: dnf5_updates.rc != 0
+  when: ansible_facts["pkg_mgr"] == "dnf5"
+
+- name: Check for Fedora package updates
+  ansible.builtin.command:
+    argv:
+      - dnf
+      - --assumeyes
+      - --quiet
+      - check-update
+  become: true
+  register: dnf_updates
+  changed_when: false
+  failed_when: dnf_updates.rc not in [0, 100]
+  when: ansible_facts["pkg_mgr"] == "dnf"
+
+- name: Record available Fedora package updates
+  ansible.builtin.set_fact:
+    ws_notices: "{{ (ws_notices | default([])) + [update_notice] }}"
+  when:
+    - ansible_facts["pkg_mgr"] == "dnf5"
+    - dnf5_updates is defined
+    - not (dnf5_updates.skipped | default(false))
+    - update_count | int > 0
+  vars:
+    update_count: "{{ ((dnf5_updates.stdout | from_json).upgrades | default([])) | length }}"
+    update_notice: >-
+      Fedora has {{ update_count }} package update{{ '' if update_count | int == 1 else 's' }}
+      available. Install them with sudo dnf upgrade when you want them applied.
+
+- name: Record available Fedora package updates
+  ansible.builtin.set_fact:
+    ws_notices: "{{ (ws_notices | default([])) + [update_notice] }}"
+  when:
+    - ansible_facts["pkg_mgr"] == "dnf"
+    - dnf_updates is defined
+    - not (dnf_updates.skipped | default(false))
+    - update_count | int > 0
+  vars:
+    update_count: >-
+      {{
+        dnf_updates.stdout_lines | default([])
+        | select('match', '^[A-Za-z0-9]')
+        | list
+        | length
+      }}
+    update_notice: >-
+      Fedora has {{ update_count }} package update{{ '' if update_count | int == 1 else 's' }}
+      available. Install them with sudo dnf upgrade when you want them applied.

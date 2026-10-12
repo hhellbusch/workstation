@@ -1,0 +1,28 @@
+---
+# Every machine: shell, git, and the settings you want everywhere.
+packages:
+  - zsh
+groups: []
+flatpaks: []
+binaries: []
+# ~/.bashrc sources ~/.bashrc.d, so the account shell can stay bash.
+dotfiles:
+  - .bashrc.d/zsh.sh
+  - .gitconfig
+  - .zshrc
+# Pinned Oh My Zsh commit. fetch is false so a later bootstrap does not drift.
+repos:
+  - url: https://github.com/ohmyzsh/ohmyzsh.git
+    dest: .oh-my-zsh
+    version: 083c339e0622bfc144b66ebf1a2e8dbe7d2ada0d
+    fetch: false
+gsettings:
+  # Libadwaita and GNOME Shell follow this. GTK theme packages are not required.
+  - schema: org.gnome.desktop.interface
+    key: color-scheme
+    value: "'prefer-dark'"
+  # Ptyxis captures this before zsh sees it, so Ctrl-C still interrupts.
+  - schema: org.gnome.Ptyxis.Shortcuts
+    key: paste-clipboard
+    value: "'<ctrl>v'"
+user_services: []

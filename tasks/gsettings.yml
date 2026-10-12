@@ -1,0 +1,82 @@
+---
+- name: Read current GNOME settings
+  ansible.builtin.command:
+    argv:
+      - gsettings
+      - get
+      - "{{ item.schema }}"
+      - "{{ item.key }}"
+  loop: "{{ ws_gsettings }}"
+  register: gsettings_current
+  changed_when: false
+  when: ws_gsettings | length > 0
+
+- name: Apply GNOME settings
+  ansible.builtin.command:
+    argv:
+      - gsettings
+      - set
+      - "{{ item.item.schema }}"
+      - "{{ item.item.key }}"
+      - "{{ item.item.value }}"
+  loop: "{{ gsettings_current.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.schema }} {{ item.item.key }}"
+  when:
+    - ws_gsettings | length > 0
+    - not item.skipped | default(false)
+    - (item.stdout | default('') | trim) != (item.item.value | string)
+  changed_when: true
+  register: gsettings_applied
+
+- name: Record follow-up actions
+  ansible.builtin.set_fact:
+    ws_notices: "{{ ((ws_notices | default([])) + collected_notices) | unique | list }}"
+  vars:
+    collected_notices: >-
+      {{
+        gsettings_applied.results | default([])
+        | selectattr('changed', 'equalto', true)
+        | map(attribute='item')
+        | map(attribute='item')
+        | selectattr('notice', 'defined')
+        | rejectattr('notice', 'equalto', '')
+        | map(attribute='notice')
+        | list
+      }}
+
+- name: Reload Dash to Panel after a size change
+  ansible.builtin.command:
+    argv:
+      - gsettings
+      - set
+      - org.gnome.shell.extensions.dash-to-panel
+      - panel-sizes
+      - "{{ item }}"
+  loop:
+    - "{{ \"'{\\\"0\\\":\" + (panel_size_value | string) + \"}'\" }}"
+    - "'{}'"
+  loop_control:
+    label: "{{ item }}"
+  when: panel_size_changed | bool
+  changed_when: false
+  vars:
+    panel_size_changed: >-
+      {{
+        gsettings_applied.results | default([])
+        | selectattr('changed', 'equalto', true)
+        | map(attribute='item')
+        | map(attribute='item')
+        | selectattr('key', 'equalto', 'panel-size')
+        | list
+        | length > 0
+      }}
+    panel_size_value: >-
+      {{
+        ws_gsettings
+        | selectattr('key', 'equalto', 'panel-size')
+        | map(attribute='value')
+        | first
+        | default('32')
+        | trim("'")
+      }}

@@ -1,0 +1,19 @@
+---
+# Day-to-day engineering: OpenShift, GitOps CLIs from Fedora, and the oc client.
+packages:
+  - buildah
+  - gh
+  - helm
+  - jq
+  - k9s
+  - kustomize
+  - skopeo
+  - yq
+groups: []
+flatpaks: []
+binaries:
+  - oc
+dotfiles: []
+repos: []
+gsettings: []
+user_services: []

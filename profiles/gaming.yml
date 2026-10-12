@@ -1,0 +1,10 @@
+---
+# Gaming desktops. This profile stays clear of the cluster CLIs.
+packages: []
+groups: []
+flatpaks: []
+binaries: []
+dotfiles: []
+repos: []
+gsettings: []
+user_services: []

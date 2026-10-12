@@ -1,0 +1,10 @@
+---
+# Local model inference. Leave this off machines that should stay quiet.
+packages: []
+groups: []
+flatpaks: []
+binaries: []
+dotfiles: []
+repos: []
+gsettings: []
+user_services: []

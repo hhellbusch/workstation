@@ -1,0 +1,12 @@
+---
+- name: Enable user services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    scope: user
+    daemon_reload: true
+    enabled: true
+    state: started
+  loop: "{{ ws_user_services }}"
+  environment:
+    XDG_RUNTIME_DIR: "{{ lookup('env', 'XDG_RUNTIME_DIR') | default('/run/user/' ~ ansible_facts['user_uid'], true) }}"
+  when: ws_user_services | length > 0

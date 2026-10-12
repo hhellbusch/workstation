@@ -1,0 +1,10 @@
+---
+- name: Clone public repositories
+  ansible.builtin.git:
+    repo: "{{ item.url }}"
+    dest: "{{ item.dest if (item.dest is match('^/')) else (home_dir + '/' + item.dest) }}"
+    version: "{{ item.version | default(omit) }}"
+    recursive: "{{ item.submodules | default(false) | bool }}"
+    update: "{{ item.fetch | default(true) | bool }}"
+  loop: "{{ ws_repos }}"
+  when: ws_repos | length > 0

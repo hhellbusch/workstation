@@ -1,0 +1,37 @@
+---
+# Pinned binaries that Fedora does not ship.
+#
+# A profile names the key under binaries. The bootstrap downloads url, refuses
+# the file unless sha256 matches, and installs it into ~/.local/bin.
+#
+# The URL itself is the executable:
+#
+#   example:
+#     version: "1.0.0"
+#     kind: file
+#     url: "https://example.com/example-linux-amd64"
+#     sha256: "<64 hex characters>"
+#     dest_name: example
+#
+# The URL is a tarball or zip. source_path installs one file.
+# files installs several members from that same download:
+#
+#   example:
+#     version: "1.0.0"
+#     kind: archive
+#     url: "https://example.com/example.tar.gz"
+#     sha256: "<64 hex characters>"
+#     files:
+#       - source_path: example
+#         dest_name: example
+binaries:
+  oc:
+    version: "4.22.16"
+    kind: archive
+    url: "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/4.22.16/openshift-client-linux.tar.gz"
+    sha256: "fcbf48c72307f761021d0507dd9a0a120b8fd46895b2cd254d7cb8f8a28115b2"
+    files:
+      - source_path: oc
+        dest_name: oc
+      - source_path: kubectl
+        dest_name: kubectl

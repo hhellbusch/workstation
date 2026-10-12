@@ -1,0 +1,58 @@
+---
+- name: Refuse Fedora packages on a machine without dnf
+  ansible.builtin.assert:
+    that:
+      - ansible_facts["pkg_mgr"] in ["dnf", "dnf5"]
+    fail_msg: "A profile requested Fedora packages, and this machine does not use dnf."
+  when: (ws_packages | length > 0) or (ws_groups | length > 0)
+
+- name: Install Fedora packages
+  ansible.builtin.dnf5:
+    name: "{{ ws_packages }}"
+    state: present
+  become: true
+  when:
+    - ws_packages | length > 0
+    - ansible_facts["pkg_mgr"] == "dnf5"
+
+- name: Install Fedora packages
+  ansible.builtin.dnf:
+    name: "{{ ws_packages }}"
+    state: present
+  become: true
+  when:
+    - ws_packages | length > 0
+    - ansible_facts["pkg_mgr"] == "dnf"
+
+- name: Install Fedora package groups
+  ansible.builtin.dnf5:
+    name: "{{ ws_groups | map('regex_replace', '^', '@') | list }}"
+    state: present
+  become: true
+  when:
+    - ws_groups | length > 0
+    - ansible_facts["pkg_mgr"] == "dnf5"
+
+- name: Install Fedora package groups
+  ansible.builtin.dnf:
+    name: "{{ ws_groups | map('regex_replace', '^', '@') | list }}"
+    state: present
+  become: true
+  when:
+    - ws_groups | length > 0
+    - ansible_facts["pkg_mgr"] == "dnf"
+
+- name: Install Flatpaks from Flathub for this user
+  ansible.builtin.command:
+    argv:
+      - flatpak
+      - install
+      - --user
+      - --noninteractive
+      - --assumeyes
+      - flathub
+      - "{{ item }}"
+  loop: "{{ ws_flatpaks }}"
+  register: flatpak_install
+  changed_when: "'Installing' in flatpak_install.stdout"
+  when: ws_flatpaks | length > 0

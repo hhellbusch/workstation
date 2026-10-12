@@ -1,0 +1,88 @@
+---
+- name: Create the workstation cache directory
+  ansible.builtin.file:
+    path: "{{ download_cache }}"
+    state: directory
+    mode: "0755"
+
+- name: Find system skeleton Firefox bookmark files
+  ansible.builtin.find:
+    paths:
+      - /etc/skel/.config/mozilla/firefox
+      - /etc/skel/.mozilla/firefox
+    patterns: bookmarks.html
+    recurse: true
+    file_type: file
+  become: true
+  register: firefox_skel_bookmarks
+
+- name: Read system skeleton Firefox bookmarks
+  ansible.builtin.slurp:
+    src: "{{ item.path }}"
+  become: true
+  loop: "{{ firefox_skel_bookmarks.files }}"
+  register: firefox_skel_contents
+  no_log: true
+  when: firefox_skel_bookmarks.files | length > 0
+
+- name: Apply Firefox profile settings
+  when: not ansible_check_mode | bool
+  block:
+    - name: Stage system skeleton bookmarks outside the repo
+      ansible.builtin.copy:
+        dest: "{{ download_cache }}/firefox-skeleton-bookmarks.html"
+        content: "{{ firefox_stock_html }}"
+        mode: "0600"
+      no_log: true
+      when: firefox_skel_bookmarks.files | length > 0
+      vars:
+        firefox_stock_html: >-
+          {{
+            firefox_skel_contents.results | default([])
+            | selectattr('content', 'defined')
+            | map(attribute='content')
+            | map('b64decode')
+            | join('\n')
+          }}
+
+    - name: Check for staged skeleton bookmarks
+      ansible.builtin.stat:
+        path: "{{ download_cache }}/firefox-skeleton-bookmarks.html"
+      register: firefox_stock_file
+
+    - name: Write Firefox settings and clear stock bookmarks
+      ansible.builtin.command:
+        argv: "{{ firefox_argv }}"
+      register: firefox_apply
+      changed_when: (firefox_apply.stdout | from_json).changed | bool
+      vars:
+        firefox_argv: >-
+          {{
+            [
+              '/usr/bin/python3',
+              workstation_root + '/files/firefox/apply.py',
+              '--user-js',
+              workstation_root + '/files/firefox/user.js',
+              '--home',
+              home_dir,
+            ]
+            + (
+              ['--stock-html', download_cache + '/firefox-skeleton-bookmarks.html']
+              if firefox_stock_file.stat.exists
+              else []
+            )
+          }}
+
+    - name: Record Firefox follow-up actions
+      ansible.builtin.set_fact:
+        ws_notices: >-
+          {{
+            (ws_notices | default([]))
+            + ((firefox_apply.stdout | default('{"notices":[]}')) | from_json).notices
+          }}
+      when: ((firefox_apply.stdout | default('{"notices":[]}')) | from_json).notices | length > 0
+  always:
+    - name: Remove staged skeleton bookmarks
+      ansible.builtin.file:
+        path: "{{ download_cache }}/firefox-skeleton-bookmarks.html"
+        state: absent

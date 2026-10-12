@@ -1,0 +1,41 @@
+---
+# Laptops: touchpad, display scale, and AC versus battery power.
+packages:
+  - gnome-shell-extension-dash-to-panel
+groups: []
+flatpaks: []
+binaries: []
+repos: []
+# Two fingers moving down scroll the page down.
+# One top bar: Dash to Panel replaces the stock bottom window list.
+gsettings:
+  - schema: org.gnome.desktop.peripherals.touchpad
+    key: natural-scroll
+    value: "false"
+  - schema: org.gnome.shell
+    key: enabled-extensions
+    value: "['dash-to-panel@jderose9.github.com', 'appindicatorsupport@rgcjonas.gmail.com']"
+    notice: "Log out and back in so GNOME Shell loads the single top bar."
+  - schema: org.gnome.shell.extensions.dash-to-panel
+    key: panel-position
+    value: "'TOP'"
+    notice: "Log out and back in so GNOME Shell loads the single top bar."
+  # 32px is the fallback when panel-sizes has no per-monitor entry. Default is 48.
+  - schema: org.gnome.shell.extensions.dash-to-panel
+    key: panel-size
+    value: "32"
+  # Ungrouped buttons show the window title beside the icon.
+  - schema: org.gnome.shell.extensions.dash-to-panel
+    key: group-apps
+    value: "false"
+  - schema: org.gnome.shell.extensions.dash-to-panel
+    key: group-apps-use-fixed-width
+    value: "false"
+  - schema: org.gnome.shell
+    key: favorite-apps
+    value: "['org.mozilla.firefox.desktop', 'org.gnome.Ptyxis.desktop', 'cursor.desktop']"
+dotfiles:
+  - .local/bin/workstation-power-profile
+  - .config/systemd/user/workstation-power-profile.service
+user_services:
+  - workstation-power-profile.service
