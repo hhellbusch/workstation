@@ -11,11 +11,10 @@ Checkouts follow the remote they came from:
 ```text
 ~/git/public/github.com/<owner>/<repo>
 ~/git/private/github.com/<owner>/<repo>
-~/git/private/redhat/<group>/<repo>
 ~/git/private/customers/<customer>/<repo>
 ```
 
-Customer repositories stay beside Red Hat repositories, not inside them. This repo is the public workstation bootstrap, so its path is `~/git/public/github.com/hhellbusch/workstation`.
+This repo is the public workstation bootstrap, so its path is `~/git/public/github.com/hhellbusch/workstation`.
 
 ## Profiles
 
