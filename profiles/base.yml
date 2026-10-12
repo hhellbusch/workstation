@@ -14,6 +14,7 @@ dotfiles:
   - .bashrc.d/zsh.sh
   - .gitconfig
   - .zshrc
+  - .config/oh-my-zsh/themes/amuse-hank.zsh-theme
   - .config/Cursor/User/settings.json
   - .config/Cursor/User/keybindings.json
 # The bootstrap updates this checkout. Oh My Zsh does not update itself.
