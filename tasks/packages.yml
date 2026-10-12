@@ -6,6 +6,18 @@
     fail_msg: "A profile requested Fedora packages, and this machine does not use dnf."
   when: (ws_packages | length > 0) or (ws_groups | length > 0)
 
+- name: Add the Cursor package repository
+  ansible.builtin.yum_repository:
+    name: cursor
+    description: Cursor
+    baseurl: https://downloads.cursor.com/yumrepo
+    gpgcheck: true
+    gpgkey: https://downloads.cursor.com/keys/anysphere.asc
+    repo_gpgcheck: true
+    enabled: true
+  become: true
+  when: "'cursor' in ws_packages"
+
 - name: Install Fedora packages
   ansible.builtin.dnf5:
     name: "{{ ws_packages }}"

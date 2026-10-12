@@ -9,6 +9,7 @@ packages:
   - kustomize
   - skopeo
   - yq
+  - podman
 groups: []
 flatpaks: []
 binaries:

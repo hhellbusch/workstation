@@ -2,6 +2,10 @@
 # Every machine: shell, git, and the settings you want everywhere.
 packages:
   - zsh
+  - git
+  - btop
+  - keepassxc
+  - cursor
 groups: []
 flatpaks: []
 binaries: []
