@@ -78,31 +78,105 @@ def apply_entries(database, entries, check):
     return changed
 
 
-def ensure_folders(storage, folders, check):
-    existing = [folder for folder in folders if folder.is_dir()]
-    missing = [str(folder) for folder in folders if not folder.is_dir()]
-    notices = [f"Cursor folder {path} is not present yet." for path in missing]
-    if not existing:
-        return False, notices
+def cursor_installed():
+    return any(path.exists() for path in (Path("/usr/bin/cursor"), Path("/usr/share/cursor/cursor")))
 
-    if storage.is_file():
-        data = json.loads(storage.read_text())
-    else:
-        data = {}
+
+def cursor_running():
+    proc = Path("/proc")
+    if not proc.is_dir():
+        return False
+    for entry in proc.iterdir():
+        if not entry.name.isdigit():
+            continue
+        try:
+            command = (entry / "comm").read_text(encoding="utf-8", errors="replace").strip()
+        except OSError:
+            continue
+        if command in {"cursor", "cursor-bin"}:
+            return True
+    return False
+
+
+def folder_uri(folder):
+    return folder.resolve().as_uri()
+
+
+def recorded_folders(storage):
+    if not storage.is_file():
+        return []
+    data = json.loads(storage.read_text())
+    folders = data.get("backupWorkspaces", {}).get("folders", [])
+    return [item.get("folderUri") for item in folders if isinstance(item, dict)]
+
+
+def ensure_folders(storage, folders, check):
+    missing = [str(folder) for folder in folders if not folder.is_dir()]
+    if missing:
+        raise ValueError("Cursor folder is not on disk yet: " + ", ".join(missing))
+    if not folders:
+        return False
+    if not storage.is_file():
+        raise ValueError("Open Cursor once, quit it, then run the bootstrap again.")
+
+    data = json.loads(storage.read_text())
     backup = data.setdefault("backupWorkspaces", {})
     recorded = backup.setdefault("folders", [])
     changed = False
-    for folder in existing:
-        uri = folder.resolve().as_uri()
+    for folder in folders:
+        uri = folder_uri(folder)
         if any(isinstance(item, dict) and item.get("folderUri") == uri for item in recorded):
             continue
         changed = True
         if not check:
             recorded.append({"folderUri": uri})
     if changed and not check:
-        storage.parent.mkdir(parents=True, exist_ok=True)
         storage.write_text(json.dumps(data, indent=4) + "\n")
-    return changed, notices
+        storage.chmod(0o600)
+    return changed
+
+
+def cursor_report(args, entries, folders, database, storage):
+    pending = []
+    if args.root is not None:
+        for relative in json.loads(args.dotfiles):
+            source = args.root / "files" / "home" / relative
+            destination = args.home / relative
+            if not source.is_file():
+                continue
+            current = destination.read_text(encoding="utf-8") if destination.is_file() else None
+            if current != source.read_text(encoding="utf-8"):
+                pending.append(relative)
+
+    installed = cursor_installed()
+    needs_launch = installed and (entries or folders) and not storage.is_file()
+    if storage.is_file():
+        known = set(recorded_folders(storage))
+        for folder in folders:
+            if folder_uri(folder) not in known:
+                pending.append(str(folder))
+        if entries and database.is_file():
+            try:
+                connection = sqlite3.connect(f"file:{database}?mode=ro", uri=True, timeout=0.2)
+            except sqlite3.OperationalError:
+                pending.append("state database")
+            else:
+                try:
+                    for key, value in entries:
+                        if current_value(connection, key) != value:
+                            pending.append(key)
+                except sqlite3.OperationalError:
+                    pending.append("state database")
+                finally:
+                    connection.close()
+        elif entries:
+            pending.extend(key for key, _value in entries)
+
+    return {
+        "pending": pending,
+        "needs_launch": needs_launch,
+        "running": cursor_running(),
+    }
 
 
 def main():
@@ -110,6 +184,9 @@ def main():
     parser.add_argument("--home", required=True, type=Path)
     parser.add_argument("--entries", required=True)
     parser.add_argument("--folders", default="[]")
+    parser.add_argument("--dotfiles", default="[]")
+    parser.add_argument("--root", type=Path)
+    parser.add_argument("--pending", action="store_true")
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
 
@@ -122,31 +199,36 @@ def main():
         entries.append((key, stored(item["value"])))
 
     database = args.home / ".config/Cursor/User/globalStorage/state.vscdb"
-    notices = []
-    try:
-        changed = apply_entries(database, entries, args.check) if entries else False
-    except sqlite3.OperationalError as exc:
-        if "locked" not in str(exc).lower():
-            raise
-        changed = False
-        notices.append(
-            "Quit Cursor and run the bootstrap again to apply Cursor chat settings."
-        )
-
+    storage = args.home / ".config/Cursor/User/globalStorage/storage.json"
     folders = []
     for item in json.loads(args.folders):
         folder = Path(item)
         if not folder.is_absolute():
             folder = args.home / folder
         folders.append(folder)
-    folder_changed, folder_notices = ensure_folders(
-        args.home / ".config/Cursor/User/globalStorage/storage.json",
-        folders,
-        args.check,
-    )
-    changed = changed or folder_changed
-    notices.extend(folder_notices)
 
+    if args.pending:
+        json.dump(cursor_report(args, entries, folders, database, storage), sys.stdout)
+        sys.stdout.write("\n")
+        return 0
+
+    if (entries or folders) and cursor_installed() and not storage.is_file():
+        print("Open Cursor once, quit it, then run the bootstrap again.", file=sys.stderr)
+        return 1
+    if cursor_running() and cursor_report(args, entries, folders, database, storage)["pending"]:
+        print("Quit Cursor, then run the bootstrap again.", file=sys.stderr)
+        return 1
+
+    notices = []
+    try:
+        changed = apply_entries(database, entries, args.check) if entries else False
+    except sqlite3.OperationalError as exc:
+        if "locked" not in str(exc).lower():
+            raise
+        print("Quit Cursor, then run the bootstrap again.", file=sys.stderr)
+        return 1
+
+    changed = ensure_folders(storage, folders, args.check) or changed
     json.dump({"changed": changed, "notices": notices}, sys.stdout)
     sys.stdout.write("\n")
     return 0

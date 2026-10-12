@@ -1,33 +1,33 @@
 ---
-- name: Create the workstation cache directory
-  ansible.builtin.file:
-    path: "{{ download_cache }}"
-    state: directory
-    mode: "0755"
-
-- name: Find system skeleton Firefox bookmark files
-  ansible.builtin.find:
-    paths:
-      - /etc/skel/.config/mozilla/firefox
-      - /etc/skel/.mozilla/firefox
-    patterns: bookmarks.html
-    recurse: true
-    file_type: file
-  become: true
-  register: firefox_skel_bookmarks
-
-- name: Read system skeleton Firefox bookmarks
-  ansible.builtin.slurp:
-    src: "{{ item.path }}"
-  become: true
-  loop: "{{ firefox_skel_bookmarks.files }}"
-  register: firefox_skel_contents
-  no_log: true
-  when: firefox_skel_bookmarks.files | length > 0
-
-- name: Apply Firefox profile settings
-  when: not ansible_check_mode | bool
+- name: Prepare current Firefox downloads
+  when: firefox_phase == "fetch"
   block:
+    - name: Create the workstation cache directory
+      ansible.builtin.file:
+        path: "{{ download_cache }}"
+        state: directory
+        mode: "0755"
+
+    - name: Find system skeleton Firefox bookmark files
+      ansible.builtin.find:
+        paths:
+          - /etc/skel/.config/mozilla/firefox
+          - /etc/skel/.mozilla/firefox
+        patterns: bookmarks.html
+        recurse: true
+        file_type: file
+      become: true
+      register: firefox_skel_bookmarks
+
+    - name: Read system skeleton Firefox bookmarks
+      ansible.builtin.slurp:
+        src: "{{ item.path }}"
+      become: true
+      loop: "{{ firefox_skel_bookmarks.files }}"
+      register: firefox_skel_contents
+      no_log: true
+      when: firefox_skel_bookmarks.files | length > 0
+
     - name: Stage system skeleton bookmarks outside the repo
       ansible.builtin.copy:
         dest: "{{ download_cache }}/firefox-skeleton-bookmarks.html"
@@ -50,15 +50,13 @@
         path: "{{ download_cache }}/firefox-skeleton-bookmarks.html"
       register: firefox_stock_file
 
-    - name: Require pinned Firefox extensions
+    - name: Require Firefox extension entries
       ansible.builtin.assert:
         that:
           - item in (lockfile.firefox_extensions | default({}))
           - lockfile.firefox_extensions[item].id is defined
-          - lockfile.firefox_extensions[item].version is defined
           - lockfile.firefox_extensions[item].url is defined
-          - lockfile.firefox_extensions[item].sha256 is defined
-        fail_msg: "Firefox extension '{{ item }}' needs id, version, url, and sha256 in lockfile.yml."
+        fail_msg: "Firefox extension '{{ item }}' needs id and url in lockfile.yml."
       loop: "{{ ws_firefox_extensions }}"
       when: ws_firefox_extensions | length > 0
 
@@ -69,20 +67,25 @@
         mode: "0755"
       when: ws_firefox_extensions | length > 0
 
-    - name: Download pinned Firefox extensions
+    - name: Download the current Firefox extensions
       ansible.builtin.get_url:
         url: "{{ lockfile.firefox_extensions[item].url }}"
         dest: "{{ download_cache }}/firefox-extensions/{{ item }}.xpi"
-        checksum: "sha256:{{ lockfile.firefox_extensions[item].sha256 }}"
+        force: true
         mode: "0644"
       loop: "{{ ws_firefox_extensions }}"
+      when: ws_firefox_extensions | length > 0
+
+    - name: Reset the Firefox extension manifest
+      ansible.builtin.set_fact:
+        firefox_extension_manifest: []
       when: ws_firefox_extensions | length > 0
 
     - name: Record the Firefox extension manifest
       ansible.builtin.set_fact:
         firefox_extension_manifest: >-
           {{
-            firefox_extension_manifest | default([])
+            firefox_extension_manifest
             + [{
                 'id': lockfile.firefox_extensions[item].id,
                 'path': download_cache + '/firefox-extensions/' + item + '.xpi',
@@ -98,6 +101,11 @@
         mode: "0600"
       when: ws_firefox_extensions | length > 0
 
+- name: Apply Firefox profile settings
+  when:
+    - firefox_phase == "apply"
+    - not ansible_check_mode | bool
+  block:
     - name: Write Firefox settings and clear stock bookmarks
       ansible.builtin.command:
         argv: "{{ firefox_argv }}"
@@ -116,7 +124,7 @@
             ]
             + (
               ['--stock-html', download_cache + '/firefox-skeleton-bookmarks.html']
-              if firefox_stock_file.stat.exists
+              if (firefox_stock_file.stat.exists | default(false))
               else []
             )
             + (
@@ -139,3 +147,4 @@
       ansible.builtin.file:
         path: "{{ download_cache }}/firefox-skeleton-bookmarks.html"
         state: absent
+      when: firefox_phase == "apply"

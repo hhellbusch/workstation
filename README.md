@@ -23,10 +23,10 @@ Pass a comma-separated list. Each name is a file in `profiles/`.
 | Profile | Use |
 |---|---|
 | `base` | Every machine. Shell, git, editor, settings you want everywhere. |
-| `work` | OpenShift, Argo CD, Tekton, Buildah, Ansible, and the public field-notes repo. |
+| `work` | OpenShift client, Helm, Kustomize, Buildah, Skopeo, Podman, and the day-to-day CLIs. |
 | `ai` | Local model inference. |
 | `gaming` | Steam and related desktop tools. Cluster CLIs stay out of this profile. |
-| `laptop` | Touchpad, display scale, and AC versus battery power. |
+| `laptop` | Touchpad, top bar, and AC versus battery power. |
 
 ```bash
 PROFILES=base,work,laptop ./bootstrap.sh
@@ -46,8 +46,8 @@ Corporate hosts, Kerberos git configuration, and anything specific to a managed 
 
 ## Supply chain
 
-1. Install from Fedora when Fedora ships the package. Add the package name to a profile.
-2. For anything else, add an entry to `lockfile.yml` with the exact URL and `sha256`, and name that entry from a profile. The bootstrap refuses a download whose digest does not match.
+1. Install from Fedora when Fedora ships the package. Add the package name to a profile. Each run installs the current version.
+2. For anything else, add the channel URL to `lockfile.yml` and name that entry from a profile. Each run downloads that URL again. There is no pinned version or checksum.
 3. Do not add installers that pipe a downloaded script into a shell.
 
 `kind: file` means the URL is the executable. `kind: archive` means the URL is a tarball or zip, and `source_path` is the file to copy out of it. Installed binaries land in `~/.local/bin`.
@@ -68,7 +68,7 @@ groups:
   - kde-desktop
 ```
 
-Pinned binary: an entry in `lockfile.yml`, then the key in the profile:
+Upstream binary: an entry in `lockfile.yml` with the channel URL, then the key in the profile:
 
 ```yaml
 binaries:
@@ -101,7 +101,7 @@ repos:
     submodules: true
 ```
 
-Package and group tasks use `sudo`. The base profile installs Cursor from `downloads.cursor.com`, plus git, btop, and KeePassXC. The work profile installs podman. Binary, dotfile, Flatpak, GNOME settings, user services, and git tasks run as you. The base profile clones `my-ai-workspace` and registers that checkout as a Cursor folder so its project rules load. Firefox settings are written to each profile as `user.js`: a blank page for new tabs and new windows, strict tracking protection, and Firefox's password manager turned off. Pinned Firefox extensions are copied into the profile from `lockfile.yml`. The lockfile is limited to add-ons Mozilla recommends or publishes as By Firefox. An extension that is already installed is left in place. When Firefox is not running, bookmarks that match a system skeleton `bookmarks.html` are removed. The base profile copies Cursor `settings.json` and `keybindings.json`. Ctrl+Enter sends a chat message, because Cursor stores that choice in its state database rather than in `settings.json`. Quit Cursor first when it is already open. A user service is a systemd unit under `files/home/.config/systemd/user/`, named from the profile:
+Package and group tasks use `sudo` and install the current version from Fedora or from the Cursor yum repo. The base profile installs Cursor, git, btop, and KeePassXC. The work profile installs Podman. Downloads in `lockfile.yml` follow the upstream channel on every run. The base profile clones `my-ai-workspace` and registers that checkout as a Cursor folder. Firefox settings are a blank page for new tabs and windows, strict tracking protection, and KeePassXC instead of the built-in password manager. Add-ons in the lockfile are limited to ones Mozilla recommends or publishes, and each run installs the current xpi. Before it changes Firefox or Cursor, the bootstrap stops if that app is open, and it waits if Firefox has no profile yet or Cursor has never been opened. A user service is a systemd unit under `files/home/.config/systemd/user/`, named from the profile:
 
 ```yaml
 user_services:
@@ -115,7 +115,7 @@ user_services:
 ./bootstrap.sh --check
 ```
 
-Extra arguments are passed through to `ansible-playbook`. Package and group installs use `sudo`, and so does the Fedora update check. That check does not install updates. When updates are available, the play says so in the final follow-up list.
+Extra arguments are passed through to `ansible-playbook`. Package and group installs use `sudo`.
 
 ## License
 

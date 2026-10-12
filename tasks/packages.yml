@@ -13,15 +13,53 @@
     baseurl: https://downloads.cursor.com/yumrepo
     gpgcheck: true
     gpgkey: https://downloads.cursor.com/keys/anysphere.asc
-    repo_gpgcheck: true
+    # Packages are signed. Repository metadata from this host is not.
+    repo_gpgcheck: false
     enabled: true
   become: true
   when: "'cursor' in ws_packages"
 
+- name: See whether Cursor is running
+  ansible.builtin.command:
+    argv:
+      - pgrep
+      - -x
+      - cursor|cursor-bin
+  register: cursor_running
+  changed_when: false
+  failed_when: cursor_running.rc not in [0, 1]
+  when: "'cursor' in ws_packages"
+
+- name: See whether the Cursor package has an update
+  ansible.builtin.command:
+    argv:
+      - "{{ 'dnf5' if ansible_facts['pkg_mgr'] == 'dnf5' else 'dnf' }}"
+      - check-update
+      - cursor
+  register: cursor_pkg_update
+  changed_when: false
+  failed_when: cursor_pkg_update.rc not in [0, 100]
+  when: "'cursor' in ws_packages and cursor_running.rc == 0"
+
+- name: Record whether a running Cursor would be replaced
+  ansible.builtin.set_fact:
+    cursor_replace_blocked: >-
+      {{
+        (cursor_pkg_update.rc == 100)
+        if (cursor_running.rc == 0)
+        else false
+      }}
+  when: "'cursor' in ws_packages"
+
+- name: Stop before replacing a running Cursor
+  ansible.builtin.fail:
+    msg: Quit Cursor, then run the bootstrap again. The Cursor package has an update.
+  when: cursor_replace_blocked | default(false) | bool
+
 - name: Install Fedora packages
   ansible.builtin.dnf5:
     name: "{{ ws_packages }}"
-    state: present
+    state: latest
   become: true
   when:
     - ws_packages | length > 0
@@ -30,7 +68,7 @@
 - name: Install Fedora packages
   ansible.builtin.dnf:
     name: "{{ ws_packages }}"
-    state: present
+    state: latest
   become: true
   when:
     - ws_packages | length > 0
@@ -39,7 +77,7 @@
 - name: Install Fedora package groups
   ansible.builtin.dnf5:
     name: "{{ ws_groups | map('regex_replace', '^', '@') | list }}"
-    state: present
+    state: latest
   become: true
   when:
     - ws_groups | length > 0
@@ -48,7 +86,7 @@
 - name: Install Fedora package groups
   ansible.builtin.dnf:
     name: "{{ ws_groups | map('regex_replace', '^', '@') | list }}"
-    state: present
+    state: latest
   become: true
   when:
     - ws_groups | length > 0

@@ -1,5 +1,5 @@
 export ZSH="$HOME/.oh-my-zsh"
-# Stay on the commit recorded in profiles/base.yml.
+# The bootstrap updates ~/.oh-my-zsh. Do not let Oh My Zsh update itself.
 zstyle ':omz:update' mode disabled
 ZSH_THEME="robbyrussell"
 plugins=(git)

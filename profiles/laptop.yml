@@ -1,7 +1,8 @@
 ---
-# Laptops: touchpad, display scale, and AC versus battery power.
+# Laptops: touchpad, top bar, and AC versus battery power.
 packages:
   - gnome-shell-extension-dash-to-panel
+  - gnome-shell-extension-appindicator
 groups: []
 flatpaks: []
 binaries: []

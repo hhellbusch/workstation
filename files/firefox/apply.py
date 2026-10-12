@@ -155,31 +155,55 @@ def clear_stock_bookmarks(database, urls, folders):
         connection.close()
 
 
-def installed_extension_ids(profile):
-    path = profile / "extensions.json"
-    if not path.is_file():
-        return set()
+def firefox_installed():
+    return any(path.exists() for path in (Path("/usr/bin/firefox"), Path("/usr/lib64/firefox/firefox")))
+
+
+def stock_bookmarks_present(database, urls, folders):
+    wanted = {normalized(url) for url in urls if url}
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return set()
-    return {addon.get("id") for addon in data.get("addons", []) if addon.get("id")}
+        connection = sqlite3.connect(f"file:{database}?mode=ro", uri=True, timeout=0.2)
+    except sqlite3.OperationalError:
+        return None
+    try:
+        if folders:
+            rows = connection.execute(
+                "SELECT title, guid FROM moz_bookmarks WHERE type = 2"
+            ).fetchall()
+            for title, guid in rows:
+                if guid not in ROOT_GUIDS and title in folders:
+                    return True
+        if wanted:
+            places = connection.execute("SELECT url FROM moz_places").fetchall()
+            for (url,) in places:
+                if url and normalized(url) in wanted:
+                    return True
+        return False
+    except sqlite3.OperationalError:
+        return None
+    finally:
+        connection.close()
+
+
+def extension_needs_update(profile, extension):
+    source = Path(extension["path"])
+    destination = profile / "extensions" / f"{extension['id']}.xpi"
+    if not source.is_file():
+        return False
+    payload = source.read_bytes()
+    return not destination.is_file() or destination.read_bytes() != payload
 
 
 def install_extensions(profile, extensions):
-    present = installed_extension_ids(profile)
     destination_dir = profile / "extensions"
     changed = False
     for extension in extensions:
-        if extension["id"] in present:
+        if not extension_needs_update(profile, extension):
             continue
         source = Path(extension["path"])
         destination = destination_dir / f"{extension['id']}.xpi"
-        payload = source.read_bytes()
-        if destination.is_file() and destination.read_bytes() == payload:
-            continue
         destination_dir.mkdir(mode=0o755, exist_ok=True)
-        destination.write_bytes(payload)
+        destination.write_bytes(source.read_bytes())
         destination.chmod(0o644)
         changed = True
     return changed
@@ -195,20 +219,72 @@ def write_user_js(profile, source):
     return True
 
 
+def load_extensions(manifest):
+    if manifest is None or not manifest.is_file():
+        return []
+    return json.loads(manifest.read_text(encoding="utf-8")).get("extensions", [])
+
+
+def firefox_report(home, user_js, stock_html, manifest):
+    profiles = profile_directories(home)
+    extensions = load_extensions(manifest)
+    stock_urls, stock_folders = set(), set()
+    if stock_html and stock_html.is_file():
+        stock_urls, stock_folders = load_stock(stock_html)
+    pending = []
+    if profiles and user_js.is_file():
+        desired = user_js.read_text(encoding="utf-8")
+        if any((profile / "user.js").read_text(encoding="utf-8") != desired
+               if (profile / "user.js").is_file() else True
+               for profile in profiles):
+            pending.append("user.js")
+    for extension in extensions:
+        if any(extension_needs_update(profile, extension) for profile in profiles):
+            pending.append(extension["id"])
+    if profiles and (stock_urls or stock_folders):
+        for profile in profiles:
+            database = profile / "places.sqlite"
+            if not database.is_file():
+                continue
+            if stock_bookmarks_present(database, stock_urls, stock_folders):
+                pending.append("stock bookmarks")
+                break
+    return {
+        "pending": pending,
+        "needs_profile": firefox_installed() and not profiles,
+        "running": firefox_is_running(),
+    }
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--user-js", required=True, type=Path)
     parser.add_argument("--home", required=True, type=Path)
     parser.add_argument("--stock-html", type=Path)
     parser.add_argument("--extensions-manifest", type=Path)
+    parser.add_argument("--pending", action="store_true")
     args = parser.parse_args()
+
+    report = firefox_report(args.home, args.user_js, args.stock_html, args.extensions_manifest)
+    if args.pending:
+        json.dump(report, sys.stdout)
+        sys.stdout.write("\n")
+        return 0
+
+    if report["needs_profile"]:
+        print(
+            "Open Firefox once so it creates a profile, quit it, then run the bootstrap again.",
+            file=sys.stderr,
+        )
+        return 1
+    if report["running"] and report["pending"]:
+        print("Quit Firefox, then run the bootstrap again.", file=sys.stderr)
+        return 1
 
     notices = []
     changed = False
     profiles = profile_directories(args.home)
     if not profiles:
-        if any(Path(path).exists() for path in ("/usr/bin/firefox", "/usr/lib64/firefox/firefox")):
-            notices.append("Open Firefox once, then run the bootstrap again to apply Firefox settings.")
         json.dump({"changed": False, "notices": notices}, sys.stdout)
         sys.stdout.write("\n")
         return 0
@@ -217,25 +293,16 @@ def main():
         if write_user_js(profile, args.user_js):
             changed = True
 
-    extensions = []
-    if args.extensions_manifest and args.extensions_manifest.is_file():
-        extensions = json.loads(args.extensions_manifest.read_text(encoding="utf-8")).get("extensions", [])
-    extensions_changed = False
+    extensions = load_extensions(args.extensions_manifest)
     for profile in profiles:
         if extensions and install_extensions(profile, extensions):
-            extensions_changed = True
             changed = True
 
     stock_urls, stock_folders = set(), set()
     if args.stock_html and args.stock_html.is_file():
         stock_urls, stock_folders = load_stock(args.stock_html)
 
-    running = firefox_is_running()
-    if running and (changed or extensions_changed):
-        notices.append("Restart Firefox to load the new settings and extensions.")
-    if running and (stock_urls or stock_folders):
-        notices.append("Quit Firefox and run the bootstrap again to remove the stock bookmarks.")
-    elif not running and (stock_urls or stock_folders):
+    if stock_urls or stock_folders:
         for profile in profiles:
             database = profile / "places.sqlite"
             if not database.is_file():
@@ -243,8 +310,8 @@ def main():
             try:
                 removed = clear_stock_bookmarks(database, stock_urls, stock_folders)
             except sqlite3.OperationalError:
-                notices.append("Quit Firefox and run the bootstrap again to remove the stock bookmarks.")
-                break
+                print("Quit Firefox, then run the bootstrap again.", file=sys.stderr)
+                return 1
             if removed:
                 changed = True
 

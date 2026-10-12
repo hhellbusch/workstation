@@ -16,14 +16,19 @@
     - name: Prepare profile data
       ansible.builtin.import_tasks: tasks/preflight.yml
 
+    - name: Download the current Firefox add-ons
+      ansible.builtin.include_tasks: tasks/firefox.yml
+      vars:
+        firefox_phase: fetch
+
+    - name: Check Firefox and Cursor before changing anything
+      ansible.builtin.include_tasks: tasks/gate.yml
+
     - name: Install dotfiles
       ansible.builtin.import_tasks: tasks/dotfiles.yml
 
     - name: Install packages
       ansible.builtin.import_tasks: tasks/packages.yml
-
-    - name: Check for Fedora package updates
-      ansible.builtin.import_tasks: tasks/updates.yml
 
     - name: Apply GNOME settings
       ansible.builtin.import_tasks: tasks/gsettings.yml
@@ -31,14 +36,19 @@
     - name: Enable user services
       ansible.builtin.import_tasks: tasks/user_services.yml
 
-    - name: Install pinned binaries
+    - name: Install upstream binaries
       ansible.builtin.import_tasks: tasks/binaries.yml
 
     - name: Clone public repositories
       ansible.builtin.import_tasks: tasks/repos.yml
 
+    - name: Check Firefox and Cursor after installs
+      ansible.builtin.include_tasks: tasks/gate.yml
+
     - name: Apply Firefox settings
-      ansible.builtin.import_tasks: tasks/firefox.yml
+      ansible.builtin.include_tasks: tasks/firefox.yml
+      vars:
+        firefox_phase: apply
 
     - name: Apply Cursor settings stored outside settings.json
       ansible.builtin.import_tasks: tasks/cursor.yml

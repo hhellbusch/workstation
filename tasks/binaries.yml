@@ -1,5 +1,5 @@
 ---
-- name: Create directories for pinned binaries
+- name: Create directories for upstream binaries
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
@@ -9,7 +9,7 @@
     - "{{ download_cache }}"
   when: ws_binaries | length > 0
 
-- name: Install each pinned binary
+- name: Install each upstream binary
   ansible.builtin.include_tasks: install_binary.yml
   loop: "{{ ws_binaries }}"
   loop_control:

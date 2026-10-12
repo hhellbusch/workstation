@@ -16,12 +16,11 @@ dotfiles:
   - .zshrc
   - .config/Cursor/User/settings.json
   - .config/Cursor/User/keybindings.json
-# Pinned Oh My Zsh commit. fetch is false so a later bootstrap does not drift.
+# The bootstrap updates this checkout. Oh My Zsh does not update itself.
 repos:
   - url: https://github.com/ohmyzsh/ohmyzsh.git
     dest: .oh-my-zsh
-    version: 083c339e0622bfc144b66ebf1a2e8dbe7d2ada0d
-    fetch: false
+    version: main
   - url: https://github.com/hhellbusch/my-ai-workspace.git
     dest: git/public/github.com/hhellbusch/my-ai-workspace
     version: main

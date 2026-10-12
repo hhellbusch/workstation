@@ -1,0 +1,85 @@
+---
+- name: Build the Firefox and Cursor check command
+  ansible.builtin.set_fact:
+    gate_argv: >-
+      {{
+        [
+          '/usr/bin/python3',
+          workstation_root + '/files/gate.py',
+          '--root',
+          workstation_root,
+          '--home',
+          home_dir,
+          '--entries',
+          ws_cursor_state | to_json,
+          '--folders',
+          ws_cursor_folders | to_json,
+          '--dotfiles',
+          (ws_dotfiles | select('search', 'Cursor/') | list) | to_json,
+        ]
+        + (
+          ['--extensions-manifest', download_cache + '/firefox-extensions/manifest.json']
+          if (ws_firefox_extensions | length > 0)
+          else []
+        )
+        + (
+          ['--stock-html', download_cache + '/firefox-skeleton-bookmarks.html']
+          if (firefox_stock_file is defined and firefox_stock_file.stat.exists)
+          else []
+        )
+      }}
+
+- name: See whether Firefox or Cursor still need changes
+  ansible.builtin.command:
+    argv: "{{ gate_argv }}"
+  register: app_gate
+  changed_when: false
+
+- name: Record the Firefox and Cursor check
+  ansible.builtin.set_fact:
+    app_gate_action: "{{ (app_gate.stdout | from_json).action }}"
+    app_gate_message: "{{ (app_gate.stdout | from_json).message }}"
+
+- name: Stop so Firefox or Cursor can be closed first
+  ansible.builtin.fail:
+    msg: "{{ app_gate_message }}"
+  when: app_gate_action == 'abort'
+
+- name: Stop in check mode until Firefox or Cursor is ready
+  ansible.builtin.fail:
+    msg: "{{ app_gate_message }}"
+  when:
+    - ansible_check_mode | bool
+    - app_gate_action == 'pause'
+
+- name: Wait until Firefox or Cursor is ready
+  ansible.builtin.pause:
+    prompt: "{{ app_gate_message }}"
+  when: app_gate_action == 'pause'
+
+- name: Check Firefox and Cursor again
+  ansible.builtin.command:
+    argv: "{{ gate_argv }}"
+  register: app_gate_after
+  changed_when: false
+  when: app_gate_action == 'pause'
+
+- name: Record the second Firefox and Cursor check
+  ansible.builtin.set_fact:
+    app_gate_after_action: >-
+      {{
+        (app_gate_after.stdout | from_json).action
+        if app_gate_action == 'pause'
+        else 'ok'
+      }}
+    app_gate_after_message: >-
+      {{
+        (app_gate_after.stdout | from_json).message
+        if app_gate_action == 'pause'
+        else ''
+      }}
+
+- name: Stop if Firefox or Cursor is still not ready
+  ansible.builtin.fail:
+    msg: "{{ app_gate_after_message }}"
+  when: app_gate_after_action != 'ok'
