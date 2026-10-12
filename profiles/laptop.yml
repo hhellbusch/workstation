@@ -37,6 +37,7 @@ gsettings:
 dotfiles:
   - .local/bin/workstation-power-profile
   - .config/systemd/user/workstation-power-profile.service
+cursor_state: []
 user_services:
   - workstation-power-profile.service
 firefox_extensions: []

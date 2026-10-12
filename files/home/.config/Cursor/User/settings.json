@@ -1,0 +1,15 @@
+{
+    "window.commandCenter": true,
+    "workbench.colorTheme": "Visual Studio Dark",
+    "redhat.telemetry.enabled": true,
+    "editor.renderWhitespace": "all",
+    "editor.fontSize": 11,
+    "editor.formatOnPaste": true,
+    "editor.multiCursorModifier": "ctrlCmd",
+    "editor.snippetSuggestions": "top",
+    "workbench.editor.enablePreview": false,
+    "window.autoDetectColorScheme": false,
+    "cursor.composer.textSizeScale": 1.15,
+    "cursor.composer.conversationDensity": "detailed",
+    "cursor.composer.editorConversationDensity": "detailed"
+}

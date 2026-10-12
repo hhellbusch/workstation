@@ -40,6 +40,9 @@
     - name: Apply Firefox settings
       ansible.builtin.import_tasks: tasks/firefox.yml
 
+    - name: Apply Cursor settings stored outside settings.json
+      ansible.builtin.import_tasks: tasks/cursor.yml
+
     - name: Apply a private overlay when one exists
       ansible.builtin.import_tasks: tasks/overlay.yml
 

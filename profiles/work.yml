@@ -16,5 +16,6 @@ binaries:
 dotfiles: []
 repos: []
 gsettings: []
+cursor_state: []
 user_services: []
 firefox_extensions: []

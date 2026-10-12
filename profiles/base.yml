@@ -10,6 +10,8 @@ dotfiles:
   - .bashrc.d/zsh.sh
   - .gitconfig
   - .zshrc
+  - .config/Cursor/User/settings.json
+  - .config/Cursor/User/keybindings.json
 # Pinned Oh My Zsh commit. fetch is false so a later bootstrap does not drift.
 repos:
   - url: https://github.com/ohmyzsh/ohmyzsh.git
@@ -25,6 +27,23 @@ gsettings:
   - schema: org.gnome.Ptyxis.Shortcuts
     key: paste-clipboard
     value: "'<ctrl>v'"
+# Cursor stores these outside settings.json. Ctrl+Enter sends a chat
+# message, and Enter inserts a newline. The other values match this
+# desktop: agent layout, sidebar on the left, split diffs, inline diffs
+# off, and agent command output left expanded.
+cursor_state:
+  - key: cursor/chatSubmitOnCmdEnter
+    value: "true"
+  - key: cursor/unifiedAppLayout
+    value: "agent"
+  - key: cursor/agentLayout.sidebarLocation
+    value: "left"
+  - key: cursor/agentLayoutDiffViewMode
+    value: "split"
+  - key: cursor/noInlineDiffs
+    value: "true"
+  - key: cursor/collapseAutoRunCommands
+    value: "false"
 user_services: []
 # Imagus stopped in 2020; imagus-reborn is the maintained hover-zoom extension.
 # YouTube High Definition is omitted: its last release is from 2024 and it no longer sets playback quality.

@@ -1,0 +1,31 @@
+---
+- name: Apply Cursor state-database preferences
+  when: ws_cursor_state | length > 0
+  ansible.builtin.command:
+    argv: "{{ cursor_argv }}"
+  register: cursor_apply
+  changed_when: (cursor_apply.stdout | from_json).changed | bool
+  vars:
+    cursor_argv: >-
+      {{
+        [
+          '/usr/bin/python3',
+          workstation_root + '/files/cursor/apply_state.py',
+          '--home',
+          home_dir,
+          '--entries',
+          ws_cursor_state | to_json,
+        ]
+        + (['--check'] if ansible_check_mode | bool else [])
+      }}
+
+- name: Record Cursor follow-up actions
+  ansible.builtin.set_fact:
+    ws_notices: >-
+      {{
+        (ws_notices | default([]))
+        + ((cursor_apply.stdout | default('{"notices":[]}')) | from_json).notices
+      }}
+  when:
+    - ws_cursor_state | length > 0
+    - ((cursor_apply.stdout | default('{"notices":[]}')) | from_json).notices | length > 0
